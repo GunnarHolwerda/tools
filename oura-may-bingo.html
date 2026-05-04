@@ -160,6 +160,7 @@
     font-size: 9.5px;
     line-height: 1.2;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
@@ -170,6 +171,23 @@
     position: relative;
     overflow: hidden;
     font-weight: 500;
+  }
+  .cell-text {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .cell-date {
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    margin-top: 3px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.25);
+    color: white;
+    line-height: 1;
   }
   .cell:hover {
     transform: scale(1.04);
@@ -285,6 +303,104 @@
   .rules ul { margin: 0; padding-left: 18px; }
   .rules li { margin-bottom: 4px; }
 
+  /* Modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(40, 20, 60, 0.45);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 20px;
+    padding: 28px 28px 22px;
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(60, 30, 100, 0.3);
+    animation: modal-in 0.2s ease-out;
+  }
+  @keyframes modal-in {
+    from { transform: translateY(20px) scale(0.96); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
+  }
+  .modal-eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #b85a8e;
+    margin-bottom: 6px;
+  }
+  .modal-challenge {
+    font-size: 19px;
+    font-weight: 700;
+    color: #2a2a3a;
+    line-height: 1.3;
+    margin-bottom: 18px;
+  }
+  .modal-label {
+    display: block;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #888;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .modal input[type="date"] {
+    width: 100%;
+    padding: 12px 14px;
+    border: 2px solid rgba(186, 130, 200, 0.25);
+    border-radius: 10px;
+    font-size: 16px;
+    font-family: inherit;
+    color: #2a2a3a;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .modal input[type="date"]:focus {
+    border-color: #6a4ea8;
+  }
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 22px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  .modal-btn {
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .modal-btn.primary {
+    background: linear-gradient(135deg, #d35a8a, #6a4ea8);
+    color: white;
+  }
+  .modal-btn.primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(120, 60, 160, 0.3); }
+  .modal-btn.ghost {
+    background: transparent;
+    color: #888;
+  }
+  .modal-btn.ghost:hover { color: #2a2a3a; }
+  .modal-btn.danger {
+    background: rgba(220, 50, 80, 0.08);
+    color: #c53050;
+  }
+  .modal-btn.danger:hover { background: rgba(220, 50, 80, 0.15); }
+  .modal-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
   /* Confetti */
   @keyframes confetti-fall {
     0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
@@ -306,7 +422,7 @@
     <div class="eyebrow">Couple's Oura Challenge</div>
     <h1>May Activity Bingo</h1>
     <p class="subtitle">A month of moving, sleeping, and competing. Fill squares as you hit each goal — first to a bingo wins, most bingos by May 31 takes the crown.</p>
-    <div class="reward"><span class="pin">🍽️</span> Winner picks the date night dinner</div>
+    <div class="reward"><span class="pin">🏖️</span> Winner Picks Summer Vacation Destination</div>
     <div class="stats-bar">
       <div class="stat-pill">📅 Day <strong id="day-of-month">—</strong> of 31</div>
       <div class="stat-pill">⏳ <strong id="days-left">—</strong> days remaining</div>
@@ -326,7 +442,7 @@
       <div class="grid" id="grid-p1"></div>
       <div class="footer-actions">
         <span class="bingo-count">Bingos: <strong id="bingos-p1">0</strong></span>
-        <button class="reset-btn" data-player="p1">Reset board</button>
+        <button class="reset-btn" data-player="p1">Reset & reshuffle</button>
       </div>
     </div>
 
@@ -342,7 +458,7 @@
       <div class="grid" id="grid-p2"></div>
       <div class="footer-actions">
         <span class="bingo-count">Bingos: <strong id="bingos-p2">0</strong></span>
-        <button class="reset-btn" data-player="p2">Reset board</button>
+        <button class="reset-btn" data-player="p2">Reset & reshuffle</button>
       </div>
     </div>
   </div>
@@ -352,14 +468,29 @@
     <div class="standings" id="standings">Tap squares as you complete them — let the games begin!</div>
   </div>
 
+  <!-- Date logging modal -->
+  <div class="modal-backdrop" id="modal">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-eyebrow" id="modal-player">Devon</div>
+      <div class="modal-challenge" id="modal-challenge">Challenge</div>
+      <label class="modal-label" for="modal-date">Date completed</label>
+      <input type="date" id="modal-date" />
+      <div class="modal-actions">
+        <button class="modal-btn ghost" id="modal-cancel">Cancel</button>
+        <button class="modal-btn danger" id="modal-clear">Clear</button>
+        <button class="modal-btn primary" id="modal-save">Save</button>
+      </div>
+    </div>
+  </div>
+
   <div class="rules">
     <h3>House Rules</h3>
     <ul>
       <li><strong>Bingo</strong> = any complete row, column, or diagonal (5 in a row). The center <strong>FREE DAY</strong> is yours to claim once each — use it on a real rest day where you let your body recover (sleep in, light stretch, no guilt).</li>
       <li><strong>Verification:</strong> Honor-system check-ins. Show your Oura app screenshot if challenged.</li>
       <li><strong>Why these squares:</strong> daily step goal stays at 10k as a baseline (no square reward — that's the floor). Stretch days, sleep streaks, strength sessions, and food/drink habits are where the real progress lives for weight loss.</li>
-      <li><strong>Tie-breaker</strong> on May 31: highest combined Activity Score for the month wins. Still tied? Co-pick the restaurant.</li>
-      <li>Click a square to mark it complete. Click again to undo. Names and progress save automatically in your browser.</li>
+      <li><strong>Tie-breaker</strong> on May 31: highest combined Activity Score for the month wins. Still tied? Co-plan the trip.</li>
+      <li>Click a square to log the date you completed it. Click an already-logged square to edit the date or clear it. Names and progress save automatically in your browser.</li>
     </ul>
   </div>
 </div>
@@ -367,55 +498,68 @@
 <script>
 // 25 challenges per board — same set so both players have a fair shot.
 // Mix of step goals, activity score targets, streaks, and couple-y prompts.
+// 24 non-free challenges — gets shuffled per-player into the 24 non-center squares
 const CHALLENGES = [
   "10k steps every day for a full week",
   "Activity Score: 90+",
-  "Workout together (strength or cardio)",
+  "Long walk together (3+ miles)",
   "12,000 steps in a day",
   "7+ hrs sleep, three nights in a row",
-
-  "Activity Score: 100 🔥",
+  "600 total calorie burn in a day",
   "Morning walk before 8am",
   "2 strength sessions in one week",
   "15,000 steps in a day",
   "No takeout — cooked at home all week",
-
   "Try a new healthy recipe together",
-  "Skipped a tempting treat — guilt-free",
-  "FREE DAY — rest & recover",  // FREE / center
+  "No food after 8pm, full week",
   "Stairs only — no elevator",
   "Water before every meal, full day",
-
   "Beat your daily step record",
-  "Hike together (5+ miles)",
+  "Step showdown: beat partner by 1,000+ steps in a day 💪",
   "Workout class together",
   "Activity Score 80+ for 5 days in a row",
-  "5 alcohol-free days in a week",
-
-  "Bike or cycle outside together",
-  "Hit 10k step goal every weekday",
+  "Stand or walk during every phone call, full day",
+  "45 min in Zone 3 in one week",
+  "30 squats every morning for 7 days straight",
   "75,000 steps in one week 🏆",
-  "Showed up to a workout on a \"meh\" day",
-  "Final week streak: 10k steps + 7hr sleep daily"
+  "30 push-ups (partner must see receipt 📸)",
+  "Drink 2 full Owalas in one day 💧"
 ];
+const FREE_TEXT = "FREE DAY — rest & recover";
 
 const FREE_INDEX = 12;
-const STORAGE_KEY = "oura-may-bingo-v2";
+const STORAGE_KEY = "oura-may-bingo-v5";
 
-// State
+function shuffleCard() {
+  const pool = [...CHALLENGES];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const card = new Array(25);
+  card[FREE_INDEX] = FREE_TEXT;
+  let pi = 0;
+  for (let i = 0; i < 25; i++) {
+    if (i !== FREE_INDEX) card[i] = pool[pi++];
+  }
+  return card;
+}
+
+// State — each entry is null (uncompleted) or a date string "YYYY-MM-DD"
+// Each player has their own randomized `card` (array of 25 challenge texts, FREE at index 12)
 let state = {
-  p1: { name: "Devon", checked: Array(25).fill(false) },
-  p2: { name: "Gunnar", checked: Array(25).fill(false) }
+  p1: { name: "Devon", card: shuffleCard(), entries: Array(25).fill(null) },
+  p2: { name: "Gunnar", card: shuffleCard(), entries: Array(25).fill(null) }
 };
-state.p1.checked[FREE_INDEX] = false; // start unchecked — must earn it
-state.p2.checked[FREE_INDEX] = false;
 
 function load() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed.p1 && parsed.p2) state = parsed;
+      if (parsed.p1 && parsed.p2 && Array.isArray(parsed.p1.entries) && Array.isArray(parsed.p1.card)) {
+        state = parsed;
+      }
     }
   } catch (e) {}
 }
@@ -423,67 +567,134 @@ function save() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
 }
 
-function getBingoLines(checked) {
+function isChecked(entries, i) { return entries[i] !== null && entries[i] !== undefined; }
+
+function formatBadgeDate(iso) {
+  if (!iso) return "";
+  // iso = "YYYY-MM-DD" — parse as local date
+  const [y, m, d] = iso.split("-").map(Number);
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return `${months[m-1]} ${d}`;
+}
+
+function todayISO() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function getBingoLines(entries) {
   const lines = [];
-  // rows
   for (let r = 0; r < 5; r++) {
     const idxs = [0,1,2,3,4].map(c => r*5 + c);
-    if (idxs.every(i => checked[i])) lines.push(idxs);
+    if (idxs.every(i => isChecked(entries, i))) lines.push(idxs);
   }
-  // columns
   for (let c = 0; c < 5; c++) {
     const idxs = [0,1,2,3,4].map(r => r*5 + c);
-    if (idxs.every(i => checked[i])) lines.push(idxs);
+    if (idxs.every(i => isChecked(entries, i))) lines.push(idxs);
   }
-  // diagonals
   const d1 = [0,6,12,18,24];
   const d2 = [4,8,12,16,20];
-  if (d1.every(i => checked[i])) lines.push(d1);
-  if (d2.every(i => checked[i])) lines.push(d2);
+  if (d1.every(i => isChecked(entries, i))) lines.push(d1);
+  if (d2.every(i => isChecked(entries, i))) lines.push(d2);
   return lines;
 }
 
 function renderBoard(playerKey) {
   const grid = document.getElementById("grid-" + playerKey);
-  const checked = state[playerKey].checked;
-  const lines = getBingoLines(checked);
+  const entries = state[playerKey].entries;
+  const card = state[playerKey].card;
+  const lines = getBingoLines(entries);
   const lineSet = new Set(lines.flat());
 
   grid.innerHTML = "";
-  CHALLENGES.forEach((text, i) => {
+  card.forEach((text, i) => {
     const cell = document.createElement("div");
     cell.className = "cell";
     if (i === FREE_INDEX) cell.classList.add("free");
-    if (checked[i]) cell.classList.add("checked");
+    if (isChecked(entries, i)) cell.classList.add("checked");
     if (lineSet.has(i)) cell.classList.add("bingo-line");
-    cell.textContent = text;
-    cell.title = text;
-    cell.addEventListener("click", () => toggleCell(playerKey, i));
+    cell.title = text + (entries[i] ? ` — completed ${formatBadgeDate(entries[i])}` : "");
+
+    const textEl = document.createElement("span");
+    textEl.className = "cell-text";
+    textEl.textContent = text;
+    cell.appendChild(textEl);
+
+    if (entries[i]) {
+      const dateEl = document.createElement("span");
+      dateEl.className = "cell-date";
+      dateEl.textContent = formatBadgeDate(entries[i]);
+      cell.appendChild(dateEl);
+    }
+
+    cell.addEventListener("click", () => openCellEditor(playerKey, i));
     grid.appendChild(cell);
   });
 
-  document.getElementById("score-" + playerKey).textContent = checked.filter(Boolean).length;
+  const filled = entries.filter(e => e !== null && e !== undefined).length;
+  document.getElementById("score-" + playerKey).textContent = filled;
   document.getElementById("bingos-" + playerKey).textContent = lines.length;
   document.getElementById("board-" + playerKey).classList.toggle("winning", lines.length > 0);
 }
 
-function toggleCell(playerKey, i) {
-  const wasChecked = state[playerKey].checked[i];
-  const prevBingos = getBingoLines(state[playerKey].checked).length;
-  state[playerKey].checked[i] = !wasChecked;
+// Modal state
+let modalCtx = { playerKey: null, index: null };
+
+function openCellEditor(playerKey, i) {
+  modalCtx = { playerKey, index: i };
+  const entries = state[playerKey].entries;
+  const existing = entries[i];
+
+  document.getElementById("modal-player").textContent = state[playerKey].name + (i === FREE_INDEX ? " · Free Day" : "");
+  document.getElementById("modal-challenge").textContent = state[playerKey].card[i];
+
+  const dateInput = document.getElementById("modal-date");
+  dateInput.value = existing || todayISO();
+
+  // Disable Clear button if not yet logged
+  document.getElementById("modal-clear").disabled = !existing;
+
+  document.getElementById("modal").classList.add("open");
+  // Focus after a tick
+  setTimeout(() => dateInput.focus(), 50);
+}
+
+function closeModal() {
+  document.getElementById("modal").classList.remove("open");
+  modalCtx = { playerKey: null, index: null };
+}
+
+function commitEntry(dateStr) {
+  if (modalCtx.playerKey === null) return;
+  const { playerKey, index } = modalCtx;
+  const prevBingos = getBingoLines(state[playerKey].entries).length;
+  state[playerKey].entries[index] = dateStr;
   save();
   renderBoard(playerKey);
   updateStandings();
-
-  const newBingos = getBingoLines(state[playerKey].checked).length;
+  const newBingos = getBingoLines(state[playerKey].entries).length;
+  closeModal();
   if (newBingos > prevBingos) celebrate();
 }
 
+function clearEntry() {
+  if (modalCtx.playerKey === null) return;
+  const { playerKey, index } = modalCtx;
+  state[playerKey].entries[index] = null;
+  save();
+  renderBoard(playerKey);
+  updateStandings();
+  closeModal();
+}
+
 function updateStandings() {
-  const b1 = getBingoLines(state.p1.checked).length;
-  const b2 = getBingoLines(state.p2.checked).length;
-  const s1 = state.p1.checked.filter(Boolean).length;
-  const s2 = state.p2.checked.filter(Boolean).length;
+  const b1 = getBingoLines(state.p1.entries).length;
+  const b2 = getBingoLines(state.p2.entries).length;
+  const s1 = state.p1.entries.filter(e => e !== null && e !== undefined).length;
+  const s2 = state.p2.entries.filter(e => e !== null && e !== undefined).length;
   const n1 = state.p1.name || "Player 1";
   const n2 = state.p2.name || "Player 2";
 
@@ -491,9 +702,9 @@ function updateStandings() {
   if (b1 === 0 && b2 === 0) {
     msg = `${n1}: ${s1} squares · ${n2}: ${s2} squares — race to first bingo!`;
   } else if (b1 > b2) {
-    msg = `${n1} leads with ${b1} bingo${b1>1?"s":""} <span class="winner-badge">🏆 picking dinner</span>`;
+    msg = `${n1} leads with ${b1} bingo${b1>1?"s":""} <span class="winner-badge">🏆 picking the trip</span>`;
   } else if (b2 > b1) {
-    msg = `${n2} leads with ${b2} bingo${b2>1?"s":""} <span class="winner-badge">🏆 picking dinner</span>`;
+    msg = `${n2} leads with ${b2} bingo${b2>1?"s":""} <span class="winner-badge">🏆 picking the trip</span>`;
   } else {
     msg = `Tied at ${b1} bingo${b1>1?"s":""} each — tiebreak by total squares: ${n1} ${s1} vs ${n2} ${s2}`;
   }
@@ -562,13 +773,35 @@ updateDateInfo();
 document.querySelectorAll(".reset-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     const p = btn.dataset.player;
-    if (confirm(`Reset ${state[p].name}'s board? All checks will be cleared.`)) {
-      state[p].checked = Array(25).fill(false);
+    if (confirm(`Reset & reshuffle ${state[p].name}'s board? All progress will be cleared and squares will be re-randomized.`)) {
+      state[p].entries = Array(25).fill(null);
+      state[p].card = shuffleCard();
       save();
       renderBoard(p);
       updateStandings();
     }
   });
+});
+
+// Modal wiring
+document.getElementById("modal-cancel").addEventListener("click", closeModal);
+document.getElementById("modal-clear").addEventListener("click", clearEntry);
+document.getElementById("modal-save").addEventListener("click", () => {
+  const v = document.getElementById("modal-date").value;
+  if (!v) { alert("Please pick a date."); return; }
+  commitEntry(v);
+});
+document.getElementById("modal-date").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    const v = e.target.value;
+    if (v) commitEntry(v);
+  }
+});
+document.getElementById("modal").addEventListener("click", (e) => {
+  if (e.target.id === "modal") closeModal();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && document.getElementById("modal").classList.contains("open")) closeModal();
 });
 </script>
 </body>

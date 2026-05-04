@@ -283,6 +283,68 @@
     margin-left: 8px;
     font-weight: 700;
   }
+  .seed-info {
+    margin-top: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 14px 20px;
+    background: rgba(255,255,255,0.55);
+    border-radius: 14px;
+    border: 1px solid rgba(186, 130, 200, 0.22);
+    font-size: 13px;
+    color: #5a5a72;
+  }
+  .seed-info .seed-label {
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #6a4ea8;
+  }
+  .seed-info .seed-value {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    background: rgba(186, 130, 200, 0.14);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #2a2a3a;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .seed-info .seed-hint {
+    flex-basis: 100%;
+    text-align: center;
+    font-size: 11px;
+    color: #888;
+    margin-top: 2px;
+  }
+  .seed-btn {
+    background: rgba(255,255,255,0.75);
+    border: 1px solid rgba(186, 130, 200, 0.3);
+    color: #6a4ea8;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .seed-btn:hover {
+    background: rgba(186, 130, 200, 0.15);
+    transform: translateY(-1px);
+  }
+  .seed-btn.danger {
+    color: #c53050;
+    border-color: rgba(220, 50, 80, 0.3);
+  }
+  .seed-btn.danger:hover {
+    background: rgba(220, 50, 80, 0.1);
+  }
+
   .rules {
     margin-top: 28px;
     background: rgba(255,255,255,0.5);
@@ -442,7 +504,7 @@
       <div class="grid" id="grid-p1"></div>
       <div class="footer-actions">
         <span class="bingo-count">Bingos: <strong id="bingos-p1">0</strong></span>
-        <button class="reset-btn" data-player="p1">Reset & reshuffle</button>
+        <button class="reset-btn" data-player="p1">Clear my squares</button>
       </div>
     </div>
 
@@ -458,7 +520,7 @@
       <div class="grid" id="grid-p2"></div>
       <div class="footer-actions">
         <span class="bingo-count">Bingos: <strong id="bingos-p2">0</strong></span>
-        <button class="reset-btn" data-player="p2">Reset & reshuffle</button>
+        <button class="reset-btn" data-player="p2">Clear my squares</button>
       </div>
     </div>
   </div>
@@ -474,7 +536,7 @@
       <div class="modal-eyebrow" id="modal-player">Devon</div>
       <div class="modal-challenge" id="modal-challenge">Challenge</div>
       <label class="modal-label" for="modal-date">Date completed</label>
-      <input type="date" id="modal-date" />
+      <input type="date" id="modal-date" min="2026-05-01" max="2026-05-31" />
       <div class="modal-actions">
         <button class="modal-btn ghost" id="modal-cancel">Cancel</button>
         <button class="modal-btn danger" id="modal-clear">Clear</button>
@@ -490,8 +552,17 @@
       <li><strong>Verification:</strong> Honor-system check-ins. Show your Oura app screenshot if challenged.</li>
       <li><strong>Why these squares:</strong> daily step goal stays at 10k as a baseline (no square reward — that's the floor). Stretch days, sleep streaks, strength sessions, and food/drink habits are where the real progress lives for weight loss.</li>
       <li><strong>Tie-breaker</strong> on May 31: highest combined Activity Score for the month wins. Still tied? Co-plan the trip.</li>
-      <li>Click a square to log the date you completed it. Click an already-logged square to edit the date or clear it. Names and progress save automatically in your browser.</li>
+      <li>Click a square to log the date you completed it. Click an already-logged square to edit the date or clear it. Dates must fall in May 2026.</li>
+      <li><strong>Sharing:</strong> the seed and every completion date live in the URL — copy the share link to send Devon the exact same boards (cards, names, dates, completions).</li>
     </ul>
+  </div>
+
+  <div class="seed-info">
+    <span class="seed-label">Game Seed</span>
+    <code class="seed-value" id="seed-value">—</code>
+    <button class="seed-btn" id="copy-link-btn" type="button">Copy share link</button>
+    <button class="seed-btn danger" id="new-game-btn" type="button">New game</button>
+    <span class="seed-hint">This seed deterministically generates both boards. Same seed + same URL = same game.</span>
   </div>
 </div>
 
@@ -526,14 +597,33 @@ const CHALLENGES = [
   "Drink 2 full Owalas in one day 💧"
 ];
 const FREE_TEXT = "FREE DAY — rest & recover";
-
 const FREE_INDEX = 12;
-const STORAGE_KEY = "oura-may-bingo-v5";
 
-function shuffleCard() {
+// --- Seeded PRNG (mulberry32 + FNV-1a string hash) ---------------------
+function hashStringToSeed(str) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+function mulberry32(seed) {
+  let s = seed >>> 0;
+  return function() {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function generateSeed() {
+  return Math.random().toString(36).slice(2, 8).padEnd(6, "0");
+}
+function shuffleCardWithRng(rng) {
   const pool = [...CHALLENGES];
   for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
   const card = new Array(25);
@@ -544,27 +634,64 @@ function shuffleCard() {
   }
   return card;
 }
-
-// State — each entry is null (uncompleted) or a date string "YYYY-MM-DD"
-// Each player has their own randomized `card` (array of 25 challenge texts, FREE at index 12)
-let state = {
-  p1: { name: "Devon", card: shuffleCard(), entries: Array(25).fill(null) },
-  p2: { name: "Gunnar", card: shuffleCard(), entries: Array(25).fill(null) }
-};
-
-function load() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed.p1 && parsed.p2 && Array.isArray(parsed.p1.entries) && Array.isArray(parsed.p1.card)) {
-        state = parsed;
-      }
-    }
-  } catch (e) {}
+function buildCardsFromSeed(seed) {
+  const rng = mulberry32(hashStringToSeed(String(seed)));
+  return { p1: shuffleCardWithRng(rng), p2: shuffleCardWithRng(rng) };
 }
-function save() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+
+// --- Entry <-> URL encoding --------------------------------------------
+// Each cell is one base36 char: '0' = empty, '1'..'v' = day 1..31 of May 2026.
+function encodeEntries(entries) {
+  return entries.map(e => {
+    if (!e) return "0";
+    const [y, m, d] = e.split("-").map(Number);
+    if (y === 2026 && m === 5 && d >= 1 && d <= 31) return d.toString(36);
+    return "0";
+  }).join("");
+}
+function decodeEntries(str) {
+  const out = Array(25).fill(null);
+  if (!str) return out;
+  for (let i = 0; i < 25 && i < str.length; i++) {
+    const day = parseInt(str[i], 36);
+    if (day >= 1 && day <= 31) out[i] = `2026-05-${String(day).padStart(2, "0")}`;
+  }
+  return out;
+}
+
+// --- URL state ----------------------------------------------------------
+function readUrlState() {
+  const p = new URLSearchParams(location.search);
+  return {
+    seed: p.get("s"),
+    n1: p.get("n1"),
+    n2: p.get("n2"),
+    e1: p.get("e1"),
+    e2: p.get("e2")
+  };
+}
+function writeUrlState() {
+  const p = new URLSearchParams();
+  p.set("s", state.seed);
+  p.set("n1", state.p1.name);
+  p.set("n2", state.p2.name);
+  p.set("e1", encodeEntries(state.p1.entries));
+  p.set("e2", encodeEntries(state.p2.entries));
+  const newUrl = `${location.pathname}?${p.toString()}${location.hash}`;
+  history.replaceState(null, "", newUrl);
+}
+
+let state = null;
+function initState() {
+  const url = readUrlState();
+  const seed = url.seed || generateSeed();
+  const cards = buildCardsFromSeed(seed);
+  state = {
+    seed,
+    p1: { name: url.n1 || "Devon", card: cards.p1, entries: decodeEntries(url.e1) },
+    p2: { name: url.n2 || "Gunnar", card: cards.p2, entries: decodeEntries(url.e2) }
+  };
+  writeUrlState();
 }
 
 function isChecked(entries, i) { return entries[i] !== null && entries[i] !== undefined; }
@@ -583,6 +710,11 @@ function todayISO() {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+function defaultModalDate() {
+  const today = todayISO();
+  if (today >= "2026-05-01" && today <= "2026-05-31") return today;
+  return "2026-05-01";
 }
 
 function getBingoLines(entries) {
@@ -652,7 +784,7 @@ function openCellEditor(playerKey, i) {
   document.getElementById("modal-challenge").textContent = state[playerKey].card[i];
 
   const dateInput = document.getElementById("modal-date");
-  dateInput.value = existing || todayISO();
+  dateInput.value = existing || defaultModalDate();
 
   // Disable Clear button if not yet logged
   document.getElementById("modal-clear").disabled = !existing;
@@ -672,7 +804,7 @@ function commitEntry(dateStr) {
   const { playerKey, index } = modalCtx;
   const prevBingos = getBingoLines(state[playerKey].entries).length;
   state[playerKey].entries[index] = dateStr;
-  save();
+  writeUrlState();
   renderBoard(playerKey);
   updateStandings();
   const newBingos = getBingoLines(state[playerKey].entries).length;
@@ -684,7 +816,7 @@ function clearEntry() {
   if (modalCtx.playerKey === null) return;
   const { playerKey, index } = modalCtx;
   state[playerKey].entries[index] = null;
-  save();
+  writeUrlState();
   renderBoard(playerKey);
   updateStandings();
   closeModal();
@@ -731,7 +863,7 @@ function setupNameInput(playerKey) {
   input.value = state[playerKey].name;
   input.addEventListener("input", () => {
     state[playerKey].name = input.value || (playerKey === "p1" ? "Player 1" : "Player 2");
-    save();
+    writeUrlState();
     updateStandings();
   });
 }
@@ -761,26 +893,58 @@ function updateDateInfo() {
   }
 }
 
+function updateSeedDisplay() {
+  document.getElementById("seed-value").textContent = state.seed;
+}
+
 // Wire up
-load();
+initState();
 setupNameInput("p1");
 setupNameInput("p2");
 renderBoard("p1");
 renderBoard("p2");
 updateStandings();
 updateDateInfo();
+updateSeedDisplay();
 
 document.querySelectorAll(".reset-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     const p = btn.dataset.player;
-    if (confirm(`Reset & reshuffle ${state[p].name}'s board? All progress will be cleared and squares will be re-randomized.`)) {
+    if (confirm(`Clear ${state[p].name}'s squares? Card layout stays the same — only the completed dates for ${state[p].name} are cleared.`)) {
       state[p].entries = Array(25).fill(null);
-      state[p].card = shuffleCard();
-      save();
+      writeUrlState();
       renderBoard(p);
       updateStandings();
     }
   });
+});
+
+document.getElementById("new-game-btn").addEventListener("click", () => {
+  if (!confirm("Start a brand new game? Both boards reshuffle from a new seed and all squares clear. Copy the share link first if you want to keep this game.")) return;
+  const seed = generateSeed();
+  const cards = buildCardsFromSeed(seed);
+  state.seed = seed;
+  state.p1.card = cards.p1;
+  state.p1.entries = Array(25).fill(null);
+  state.p2.card = cards.p2;
+  state.p2.entries = Array(25).fill(null);
+  writeUrlState();
+  renderBoard("p1");
+  renderBoard("p2");
+  updateStandings();
+  updateSeedDisplay();
+});
+
+document.getElementById("copy-link-btn").addEventListener("click", async () => {
+  const btn = document.getElementById("copy-link-btn");
+  const original = btn.textContent;
+  try {
+    await navigator.clipboard.writeText(location.href);
+    btn.textContent = "Copied!";
+  } catch (e) {
+    btn.textContent = "Copy failed";
+  }
+  setTimeout(() => { btn.textContent = original; }, 1500);
 });
 
 // Modal wiring

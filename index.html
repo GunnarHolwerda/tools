@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tools</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #0e0f12;
+    --panel: #16181d;
+    --text: #e6e8ec;
+    --muted: #8a8f99;
+    --accent: #6ea8fe;
+    --border: #262a31;
+    --hover: #1d2026;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f7f8fa;
+      --panel: #ffffff;
+      --text: #1a1d23;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --border: #e4e7eb;
+      --hover: #f1f3f7;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 15vh 1rem 4rem;
+  }
+  .container {
+    width: 100%;
+    max-width: 680px;
+  }
+  h1 {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--muted);
+    margin: 0 0 1rem;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+  .search-wrap {
+    position: relative;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  }
+  input[type="text"] {
+    width: 100%;
+    padding: 1rem 1.25rem;
+    font-size: 1.05rem;
+    background: transparent;
+    color: var(--text);
+    border: none;
+    outline: none;
+    border-radius: 12px;
+  }
+  input[type="text"]::placeholder { color: var(--muted); }
+  ul.results {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--border);
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+  ul.results:empty { border-top: none; }
+  ul.results li {
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    border-bottom: 1px solid var(--border);
+  }
+  ul.results li:last-child { border-bottom: none; }
+  ul.results li.active,
+  ul.results li:hover {
+    background: var(--hover);
+  }
+  .row-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .title { font-weight: 600; }
+  .file { color: var(--muted); font-size: 0.8rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .desc { color: var(--muted); font-size: 0.9rem; line-height: 1.35; }
+  mark {
+    background: transparent;
+    color: var(--accent);
+    font-weight: 600;
+    padding: 0;
+  }
+  .empty {
+    padding: 0.85rem 1.25rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>tools</h1>
+    <div class="search-wrap">
+      <input
+        id="search"
+        type="text"
+        placeholder="Search pages…"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+        autofocus
+      />
+      <ul id="results" class="results" role="listbox"></ul>
+    </div>
+  </div>
+
+<script>
+  const input = document.getElementById("search");
+  const results = document.getElementById("results");
+  let pages = [];
+  let active = 0;
+  let matches = [];
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    })[c]);
+  }
+
+  function highlight(text, query) {
+    const s = String(text ?? "");
+    if (!query) return escapeHtml(s);
+    const idx = s.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return escapeHtml(s);
+    return (
+      escapeHtml(s.slice(0, idx)) +
+      "<mark>" + escapeHtml(s.slice(idx, idx + query.length)) + "</mark>" +
+      escapeHtml(s.slice(idx + query.length))
+    );
+  }
+
+  function scorePage(page, query) {
+    if (!query) return 0;
+    const q = query.toLowerCase();
+    const title = (page.title || "").toLowerCase();
+    const file = (page.file || "").toLowerCase();
+    const desc = (page.description || "").toLowerCase();
+
+    const tIdx = title.indexOf(q);
+    const fIdx = file.indexOf(q);
+    const dIdx = desc.indexOf(q);
+
+    if (tIdx === -1 && fIdx === -1 && dIdx === -1) return -1;
+
+    // Lower score = better match. Title matches rank highest, then filename, then description.
+    let score = Infinity;
+    if (tIdx !== -1) score = Math.min(score, tIdx);
+    if (fIdx !== -1) score = Math.min(score, 100 + fIdx);
+    if (dIdx !== -1) score = Math.min(score, 1000 + dIdx);
+    return score;
+  }
+
+  function filterPages(q) {
+    const query = q.trim();
+    if (!query) {
+      return pages.slice().sort((a, b) =>
+        (a.title || a.file).localeCompare(b.title || b.file)
+      );
+    }
+    return pages
+      .map(p => ({ p, score: scorePage(p, query) }))
+      .filter(x => x.score >= 0)
+      .sort((a, b) =>
+        a.score - b.score ||
+        (a.p.title || a.p.file).localeCompare(b.p.title || b.p.file)
+      )
+      .map(x => x.p);
+  }
+
+  function render() {
+    const q = input.value;
+    matches = filterPages(q);
+    if (active >= matches.length) active = 0;
+
+    if (matches.length === 0) {
+      results.innerHTML = `<li class="empty">No matching pages</li>`;
+      return;
+    }
+
+    results.innerHTML = matches.map((p, i) => `
+      <li role="option" data-index="${i}" data-href="${escapeHtml(p.file)}" class="${i === active ? "active" : ""}">
+        <div class="row-top">
+          <span class="title">${highlight(p.title || p.file, q)}</span>
+          <span class="file">${highlight(p.file, q)}</span>
+        </div>
+        ${p.description ? `<div class="desc">${highlight(p.description, q)}</div>` : ""}
+      </li>
+    `).join("");
+  }
+
+  function navigate(href) {
+    if (href) window.location.href = href;
+  }
+
+  input.addEventListener("input", () => {
+    active = 0;
+    render();
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (matches.length === 0 && e.key !== "Escape") return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      active = (active + 1) % matches.length;
+      render();
+      results.children[active]?.scrollIntoView({ block: "nearest" });
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      active = (active - 1 + matches.length) % matches.length;
+      render();
+      results.children[active]?.scrollIntoView({ block: "nearest" });
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      navigate(matches[active]?.file);
+    } else if (e.key === "Tab" && !e.shiftKey) {
+      const top = matches[active];
+      if (top) {
+        e.preventDefault();
+        input.value = top.title || top.file;
+        render();
+      }
+    } else if (e.key === "Escape") {
+      input.value = "";
+      render();
+    }
+  });
+
+  results.addEventListener("click", (e) => {
+    const li = e.target.closest("li[data-href]");
+    if (li) navigate(li.dataset.href);
+  });
+
+  results.addEventListener("mousemove", (e) => {
+    const li = e.target.closest("li[data-index]");
+    if (li) {
+      const i = Number(li.dataset.index);
+      if (i !== active) {
+        active = i;
+        render();
+      }
+    }
+  });
+
+  fetch("pages.json", { cache: "no-cache" })
+    .then(r => {
+      if (!r.ok) throw new Error("Failed to load pages.json: " + r.status);
+      return r.json();
+    })
+    .then(data => {
+      pages = Array.isArray(data) ? data : [];
+      render();
+    })
+    .catch(err => {
+      results.innerHTML = `<li class="empty">Could not load pages.json — ${escapeHtml(err.message)}</li>`;
+    });
+</script>
+</body>
+</html>
